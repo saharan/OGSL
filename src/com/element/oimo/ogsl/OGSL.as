@@ -2034,23 +2034,24 @@ class OGSLEmitter {
 			case "anisotropic4x":
 			case "anisotropic8x":
 			case "anisotropic16x":
-				if (filtering != "") throw new Error("duplicate filtering parameters");
+				if (filtering != "") throw new Error("duplicate filtering flags");
 				filtering = param;
 				break;
 			case "nomip":
 			case "mipnearest":
 			case "miplinear":
-				if (mip != "") throw new Error("duplicate mipmap parameters");
+				if (mip != "") throw new Error("duplicate mipmap flags");
 				mip = param;
 				break;
 			case "repeat":
-			case "wrap":
 			case "clamp":
-				if (repeat != "") throw new Error("duplicate repeat parameters");
+			case "repeat_u_clamp_v":
+			case "clamp_u_repeat_v":
+				if (repeat != "") throw new Error("duplicate repeating flags");
 				repeat = param;
 				break;
 			default:
-				throw new Error("invalid sampling parameter: " + param);
+				throw new Error("invalid sampling flags: " + param);
 			}
 		}
 		if (filtering == "") filtering = "linear";
@@ -2133,7 +2134,7 @@ class OGSLEmitter {
 		if (doPush) pusha(lhs);
 	}
 
-	private function binaryOpEqual(op:String):void { // TODO: automatic swizzling for float
+	private function binaryOpEqual(op:String):void {
 		var rhs:OGSLAccessor = pop();
 		var lhs:OGSLAccessor = pop();
 		var typeL:String = env.getVariableType(lhs);
