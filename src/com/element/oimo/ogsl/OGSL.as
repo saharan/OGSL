@@ -40,10 +40,10 @@ package com.element.oimo.ogsl {
 		private var c3d:Context3D;
 		private var registerMap:OGSLRegisterMap;
 		private var logFunction:Function;
+		private var compiled:Boolean;
 		private const tmpVector:Vector.<Number> = new Vector.<Number>(4, true);
 
-		public function OGSL(logFunction:Function = null) {
-			this.logFunction = logFunction;
+		public function OGSL() {
 			tokenizer = new OGSLTokenizer();
 			parser = new OGSLParser();
 			analyzer = new OGSLAnalyzer();
@@ -52,27 +52,288 @@ package com.element.oimo.ogsl {
 			registerMap = new OGSLRegisterMap();
 		}
 
-		public function compile(ogslCode:String):void {
-			this.ogslCode = ogslCode;
-			log("");
-			log("input code:");
-			log(ogslCode);
-			log("");
-			tokenize();
-			parse();
-			analyze();
-			emit();
-			optimize();
-			map();
-			log("");
+		/**
+		 * set log function used for logging
+		 * @param	logFunction function (logText:String):void { ... }
+		 */
+		public function setLogFunction(logFunction:Function):void {
+			this.logFunction = logFunction;
 		}
 
+		/**
+		 * compile given OGSL source code
+		 * @param	ogslCode OGSL source code
+		 * @see	isCompiled true if the compiling is finished without any error
+		 */
+		public function compile(ogslCode:String):void {
+			compiled = false;
+			vertexOutput = null;
+			fragmentOutput = null;
+			this.ogslCode = ogslCode.replace(/\r|\r\n/g, "\n");
+			try {
+				log("");
+				log("input code:");
+				log(ogslCode);
+				log("");
+				tokenize();
+				parse();
+				analyze();
+				emit();
+				optimize();
+				map();
+				compiled = true;
+			} catch (e:Error) {
+				throw e;
+			}
+		}
+
+		/**
+		 * return if the last compiling is finished without any error
+		 * @return	true if no error
+		 */
+		public function isCompiled():Boolean {
+			return compiled;
+		}
+
+		/**
+		 * return the last-compiled AGAL of vertex shader
+		 * @return	vertex shader AGAL
+		 */
 		public function getVertexAGAL():String {
+			if (!vertexOutput) throw new Error("compiling is not finished");
 			return vertexOutput.print();
 		}
 
+		/**
+		 * return the last-compiled AGAL of fragment shader
+		 * @return	fragment shader AGAL
+		 */
 		public function getFragmentAGAL():String {
+			if (!fragmentOutput) throw new Error("compiling is not finished");
 			return fragmentOutput.print();
+		}
+
+		/**
+		 * set Context3D object
+		 * @param	c3d Context3D
+		 */
+		public function setContext3D(c3d:Context3D):void {
+			this.c3d = c3d;
+		}
+
+		/**
+		 * set vertex buffer to Context3D
+		 * @param	name vertex attribute name in OGSL source
+		 * @param	buffer VertexBuffer3D
+		 * @param	bufferOffset buffer start index
+		 * @param	format Context3DVertexBufferFormat
+		 * @see	setContext3D
+		 */
+		public function setVertexBuffer(name:String, buffer:VertexBuffer3D, bufferOffset:int, format:String):void {
+			if (!c3d) throw new Error("Context3D is not set");
+			c3d.setVertexBufferAt(getVertexBufferIndex(name), buffer, bufferOffset, format);
+		}
+
+		/**
+		 * set vertex constants to Context3D from Number
+		 * @param	name vertex uniform name in OGSL source
+		 * @param	data data to set
+		 * @see	setContext3D
+		 */
+		public function setVertexConstantsFromNumber(name:String, data:Number):void {
+			if (!c3d) throw new Error("Context3D is not set");
+			tmpVector[0] = data;
+			tmpVector[1] = 0;
+			tmpVector[2] = 0;
+			tmpVector[3] = 0;
+			c3d.setProgramConstantsFromVector(Context3DProgramType.VERTEX, getVertexConstantsIndex(name), tmpVector);
+		}
+
+		/**
+		 * set vertex constants to Context3D from Vector.<Number>
+		 * @param	name vertex uniform name in OGSL source
+		 * @param	data data to set
+		 * @see	setContext3D
+		 */
+		public function setVertexConstantsFromVector(name:String, data:Vector.<Number>):void {
+			if (!c3d) throw new Error("Context3D is not set");
+			var num:int = data.length;
+			if (num < 4) {
+				for (var i:int = 0; i < num; i++) {
+					tmpVector[i] = data[i];
+				}
+				while (i < 4) {
+					tmpVector[i] = 0;
+					i++;
+				}
+				data = tmpVector;
+			}
+			c3d.setProgramConstantsFromVector(Context3DProgramType.VERTEX, getVertexConstantsIndex(name), data);
+		}
+
+		/**
+		 * set vertex constants to Context3D from Matrix3D
+		 * @param	name vertex uniform name in OGSL source
+		 * @param	matrix matrix to set
+		 * @param	transposedMatrix true if the matrix is transposed
+		 * @see	setContext3D
+		 */
+		public function setVertexConstantsFromMatrix(name:String, matrix:Matrix3D, transposedMatrix:Boolean = false):void {
+			if (!c3d) throw new Error("Context3D is not set");
+			c3d.setProgramConstantsFromMatrix(Context3DProgramType.VERTEX, getVertexConstantsIndex(name), matrix, transposedMatrix);
+		}
+
+		/**
+		 * set fragment constants to Context3D from Number
+		 * @param	name fragment uniform name in OGSL source
+		 * @param	data data to set
+		 * @see	setContext3D
+		 */
+		public function setFragmentConstantsFromNumber(name:String, data:Number):void {
+			if (!c3d) throw new Error("Context3D is not set");
+			tmpVector[0] = data;
+			tmpVector[1] = 0;
+			tmpVector[2] = 0;
+			tmpVector[3] = 0;
+			c3d.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, getFragmentConstantsIndex(name), tmpVector);
+		}
+
+		/**
+		 * set fragment constants to Context3D from Vector.<Number>
+		 * @param	name fragment uniform name in OGSL source
+		 * @param	data data to set
+		 * @see	setContext3D
+		 */
+		public function setFragmentConstantsFromVector(name:String, data:Vector.<Number>):void {
+			if (!c3d) throw new Error("Context3D is not set");
+			var num:int = data.length;
+			if (num < 4) {
+				for (var i:int = 0; i < num; i++) {
+					tmpVector[i] = data[i];
+				}
+				while (i < 4) {
+					tmpVector[i] = 0;
+					i++;
+				}
+				data = tmpVector;
+			}
+			c3d.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, getFragmentConstantsIndex(name), data);
+		}
+
+		/**
+		 * set fragment constants to Context3D from Matrix3D
+		 * @param	name fragment uniform name in OGSL source
+		 * @param	matrix matrix to set
+		 * @param	transposedMatrix true if the matrix is transposed
+		 * @see	setContext3D
+		 */
+		public function setFragmentConstantsFromMatrix(name:String, matrix:Matrix3D, transposedMatrix:Boolean = false):void {
+			if (!c3d) throw new Error("Context3D is not set");
+			c3d.setProgramConstantsFromMatrix(Context3DProgramType.FRAGMENT, getFragmentConstantsIndex(name), matrix, transposedMatrix);
+		}
+
+		/**
+		 * set default (hard-coded) fragment and vertex constants to Context3D
+		 * @see	setContext3D
+		 */
+		public function setDefaultConstants():void {
+			if (!c3d) throw new Error("Context3D is not set");
+			var data:Vector.<Number>;
+			// set vertex constants
+			data = getDefaultVertexConstantsData();
+			for (var i:int = 0; i < data.length; i += 5) {
+				c3d.setProgramConstantsFromVector(Context3DProgramType.VERTEX, data[i], new <Number>[data[i + 1], data[i + 2], data[i + 3], data[i + 4]]);
+			}
+			// set fragment constants
+			data = getDefaultFragmentConstantsData();
+			for (i = 0; i < data.length; i += 5) {
+				c3d.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, data[i], new <Number>[data[i + 1], data[i + 2], data[i + 3], data[i + 4]]);
+			}
+		}
+
+		/**
+		 * set given TextureBase to Context3D
+		 * @param	name fragment uniform name in OGSL source
+		 * @param	texture texture to set
+		 * @see	setContext3D
+		 */
+		public function setTexture(name:String, texture:TextureBase):void {
+			if (!c3d) throw new Error("Context3D is not set");
+			c3d.setTextureAt(getTextureIndex(name), texture);
+		}
+
+		/**
+		 * return vertex attribute register (va) index associated with the name
+		 * @param	name vertex attribute name in OGSL source
+		 * @return	index
+		 */
+		public function getVertexBufferIndex(name:String):int {
+			if (!registerMap) throw new Error("compiling is not finished");
+			if (registerMap.vertexBufferIndexMap[name] == null) throw new Error("no such vertex attribute: " + name);
+			return registerMap.vertexBufferIndexMap[name];
+		}
+
+		/**
+		 * return vertex constants register (vc) index associated with the name
+		 * @param	name vertex uniform name in OGSL source
+		 * @return	index
+		 */
+		public function getVertexConstantsIndex(name:String):int {
+			if (!registerMap) throw new Error("compiling is not finished");
+			if (registerMap.vertexConstantsIndexMap[name] == null) throw new Error("no such vertex constants: " + name);
+			return registerMap.vertexConstantsIndexMap[name];
+		}
+
+		/**
+		 * return fragment constants register (fc) index associated with the name
+		 * @param	name fragment uniform name in OGSL source
+		 * @return	index
+		 */
+		public function getFragmentConstantsIndex(name:String):int {
+			if (!registerMap) throw new Error("compiling is not finished");
+			if (registerMap.fragmentConstantsIndexMap[name] == null) throw new Error("no such fragment constants: " + name);
+			return registerMap.fragmentConstantsIndexMap[name];
+		}
+
+		/**
+		 * return default (hard-coded) vertex constants register (vc) data
+		 * format:
+		 *   [
+		 *     index1, x1, y1, z1, w1,
+		 *     index2, x2, y2, z2, w2,
+		 *     ...
+		 *   ]
+		 * @return index and value data
+		 */
+		public function getDefaultVertexConstantsData():Vector.<Number> {
+			if (!registerMap) throw new Error("compiling is not finished");
+			return registerMap.defaultConstantsDataVertex;
+		}
+
+		/**
+		 * return default (hard-coded) fragment constants register (fc) data
+		 * format:
+		 *   [
+		 *     index1, x1, y1, z1, w1,
+		 *     index2, x2, y2, z2, w2,
+		 *     ...
+		 *   ]
+		 * @return index and value data
+		 */
+		public function getDefaultFragmentConstantsData():Vector.<Number> {
+			if (!registerMap) throw new Error("compiling is not finished");
+			return registerMap.defaultConstantsDataFragment;
+		}
+
+		/**
+		 * return fragment sampling register (fs) index associated with the name
+		 * @param	name fragment uniform name in OGSL source
+		 * @return	index
+		 */
+		public function getTextureIndex(name:String):int {
+			if (!registerMap) throw new Error("compiling is not finished");
+			if (registerMap.textureIndexMap[name] == null) throw new Error("no such texture: " + name);
+			return registerMap.textureIndexMap[name];
 		}
 
 		private function tokenize():void {
@@ -89,7 +350,6 @@ package com.element.oimo.ogsl {
 				tokens = tokens.next;
 			}
 			log(text);
-			log("");
 		}
 
 		private function parse():void {
@@ -100,7 +360,6 @@ package com.element.oimo.ogsl {
 			log("");
 			log("syntax tree:");
 			log(JSON.stringify(parser.nodes));
-			log("");
 		}
 
 		private function analyze():void {
@@ -109,7 +368,6 @@ package com.element.oimo.ogsl {
 			analyzer.analyze(parser.nodes);
 			environment = analyzer.env;
 			log("analyzed.");
-			log("");
 		}
 
 		private function emit():void {
@@ -125,7 +383,6 @@ package com.element.oimo.ogsl {
 			log("");
 			log("emitted fragment agal:");
 			log(fragmentOutput.print());
-			log("");
 		}
 
 		private function optimize():void {
@@ -143,7 +400,6 @@ package com.element.oimo.ogsl {
 			log("");
 			log("vertex shader tokens: " + vertexOutput.numLines());
 			log("fragment shader tokens: " + fragmentOutput.numLines());
-			log("");
 		}
 
 		private function map():void {
@@ -156,109 +412,8 @@ package com.element.oimo.ogsl {
 			log("default fc: " + JSON.stringify(registerMap.defaultConstantsDataFragment));
 		}
 
-		public function setContext3D(c3d:Context3D):void {
-			this.c3d = c3d;
-		}
-
-		public function setVertexBuffer(name:String, buffer:VertexBuffer3D, bufferOffset:int, format:String):void {
-			if (!c3d) throw new Error("Context3D is not set");
-			c3d.setVertexBufferAt(getVertexBufferIndex(name), buffer, bufferOffset, format);
-		}
-
-		public function setVertexConstantsFromNumber(name:String, data:Number):void {
-			tmpVector[0] = data;
-			tmpVector[1] = 0;
-			tmpVector[2] = 0;
-			tmpVector[3] = 0;
-			c3d.setProgramConstantsFromVector(Context3DProgramType.VERTEX, getVertexConstantsIndex(name), tmpVector);
-		}
-
-		public function setVertexConstantsFromVector(name:String, data:Vector.<Number>):void {
-			var num:int = data.length;
-			if (num < 4) {
-				for (var i:int = 0; i < num; i++) {
-					tmpVector[i] = data[i];
-				}
-				while (i < 4) {
-					tmpVector[i] = 0;
-					i++;
-				}
-				data = tmpVector;
-			}
-			c3d.setProgramConstantsFromVector(Context3DProgramType.VERTEX, getVertexConstantsIndex(name), data);
-		}
-
-		public function setVertexConstantsFromMatrix(name:String, matrix:Matrix3D, transposedMatrix:Boolean = false):void {
-			c3d.setProgramConstantsFromMatrix(Context3DProgramType.VERTEX, getVertexConstantsIndex(name), matrix, transposedMatrix);
-		}
-
-		public function setFragmentConstantsFromNumber(name:String, data:Number):void {
-			tmpVector[0] = data;
-			tmpVector[1] = 0;
-			tmpVector[2] = 0;
-			tmpVector[3] = 0;
-			c3d.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, getFragmentConstantsIndex(name), tmpVector);
-		}
-
-		public function setFragmentConstantsFromVector(name:String, data:Vector.<Number>):void {
-			var num:int = data.length;
-			if (num < 4) {
-				for (var i:int = 0; i < num; i++) {
-					tmpVector[i] = data[i];
-				}
-				while (i < 4) {
-					tmpVector[i] = 0;
-					i++;
-				}
-				data = tmpVector;
-			}
-			c3d.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, getFragmentConstantsIndex(name), data);
-		}
-
-		public function setFragmentConstantsFromMatrix(name:String, matrix:Matrix3D, transposedMatrix:Boolean = false):void {
-			c3d.setProgramConstantsFromMatrix(Context3DProgramType.FRAGMENT, getFragmentConstantsIndex(name), matrix, transposedMatrix);
-		}
-
-		public function setDefaultConstants():void {
-			var data:Vector.<Number>;
-			// set vertex constants
-			data = registerMap.defaultConstantsDataVertex;
-			for (var i:int = 0; i < data.length; i += 5) {
-				c3d.setProgramConstantsFromVector(Context3DProgramType.VERTEX, data[i], new <Number>[data[i + 1], data[i + 2], data[i + 3], data[i + 4]]);
-			}
-			// set fragment constants
-			data = registerMap.defaultConstantsDataFragment;
-			for (i = 0; i < data.length; i += 5) {
-				c3d.setProgramConstantsFromVector(Context3DProgramType.FRAGMENT, data[i], new <Number>[data[i + 1], data[i + 2], data[i + 3], data[i + 4]]);
-			}
-		}
-
-		public function setTexture(name:String, texture:TextureBase):void {
-			c3d.setTextureAt(getTextureIndex(name), texture);
-		}
-
-		public function getVertexBufferIndex(name:String):int {
-			if (registerMap.vertexBufferIndexMap[name] == null) throw new Error("no such vertex attribute: " + name);
-			return registerMap.vertexBufferIndexMap[name];
-		}
-
-		public function getVertexConstantsIndex(name:String):int {
-			if (registerMap.vertexConstantsIndexMap[name] == null) throw new Error("no such vertex constants: " + name);
-			return registerMap.vertexConstantsIndexMap[name];
-		}
-
-		public function getFragmentConstantsIndex(name:String):int {
-			if (registerMap.fragmentConstantsIndexMap[name] == null) throw new Error("no such fragment constants: " + name);
-			return registerMap.fragmentConstantsIndexMap[name];
-		}
-
-		public function getTextureIndex(name:String):int {
-			if (registerMap.textureIndexMap[name] == null) throw new Error("no such texture: " + name);
-			return registerMap.textureIndexMap[name];
-		}
-
 		private function log(text:Object):void {
-			if (logFunction != null) logFunction(text);
+			if (logFunction != null) logFunction(text.toString());
 		}
 	}
 

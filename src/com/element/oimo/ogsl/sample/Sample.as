@@ -59,7 +59,8 @@ package com.element.oimo.ogsl.sample {
 			c3d.enableErrorChecking = true;
 			c3d.configureBackBuffer(WIDTH, HEIGHT, 0);
 
-			ogsl = new OGSL(function(s:String):void { // set log function
+			ogsl = new OGSL();
+			ogsl.setLogFunction(function(s:String):void { // set log function
 				trace(s);
 			});
 			ogsl.compile(OGSL_SOURCE);
