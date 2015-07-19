@@ -1159,7 +1159,7 @@ class OGSLAnalyzer {
 		addBuiltInFunction(OGSLConstants.BUILT_IN_REFLECT, 2);
 		addBuiltInFunction(OGSLConstants.BUILT_IN_REFRACT, 3);
 		addBuiltInFunction(OGSLConstants.BUILT_IN_MOD, 2);
-		addBuiltInFunction(OGSLConstants.BUILT_IN_MIX, 2);
+		addBuiltInFunction(OGSLConstants.BUILT_IN_MIX, 3);
 		addBuiltInFunction(OGSLConstants.BUILT_IN_LENGTH, 1);
 		addBuiltInFunction(OGSLConstants.BUILT_IN_NORMALIZE, 1);
 		addBuiltInFunction(OGSLConstants.BUILT_IN_SQRT, 1);
