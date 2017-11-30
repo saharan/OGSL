@@ -16,7 +16,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.element.oimo.ogsl.sample {
+package {
 	import com.adobe.utils.AGALMiniAssembler;
 	import com.element.oimo.ogsl.OGSL;
 	import flash.display.*;

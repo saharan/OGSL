@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<application xmlns="http://ns.adobe.com/air/application/26.0">
+  <id>samples.RayTracing</id>
+  <versionNumber>0.1</versionNumber>
+  <supportedProfiles>desktop</supportedProfiles>
+  <!--<supportedProfiles>mobileDevice</supportedProfiles>-->
+  <filename>OGSLEditor</filename>
+  <name>TestProg</name>
+  <initialWindow>
+    <title>TestProg</title>
+    <content>build/RayTracing.swf</content>
+    <visible>true</visible>
+    <fullScreen>true</fullScreen>
+    <renderMode>direct</renderMode>
+    <depthAndStencil>true</depthAndStencil>
+    <aspectRatio>landscape</aspectRatio>
+
+    <autoOrients>false</autoOrients>
+    <systemChrome>standard</systemChrome>
+  </initialWindow>
+  <icon />
+</application>
