@@ -2137,7 +2137,7 @@ class OGSLEmitter {
 			tmp.index = "";
 			pusha(tmp);
 			break;
-		case 3:
+		case 4:
 			// vec4
 			// vec4
 			// vec4
@@ -2192,6 +2192,7 @@ class OGSLEmitter {
 				if (filtering != "") throw new Error("duplicate filtering flags");
 				filtering = param;
 				break;
+			case "mipnone":
 			case "nomip":
 			case "mipnearest":
 			case "miplinear":
